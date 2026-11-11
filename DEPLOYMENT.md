@@ -34,12 +34,12 @@ Replace the sample key path with the key file you downloaded. The migration prin
 
 If you want a clean install, skip migration. The first visitor can create a new super admin from **Admin sign in → First time setup**. Do not use first-time setup if you migrated an existing admin account.
 
-## 4. Import the repository into Vercel
+## 4. Import the fresh repository into Vercel
 
-1. In Vercel, choose **Add New → Project** and import `MbixGamers/NMCA`.
+1. In Vercel, choose **Add New → Project** and import `MbixGamers/NMCA` from the fresh GitHub repository.
 2. Set **Root Directory** to the repository root.
 3. Choose the **Other** framework preset and leave the build command empty. Vercel installs the Node dependency from `package.json`.
-4. If you are using the open deployment PR, merge [PR #3](https://github.com/MbixGamers/NMCA/pull/3) into `main` before creating the production deployment.
+4. Deploy the `main` branch as Production. The repository includes the Vercel function configuration and static homepage output setup.
 
 The repository has a Vercel Node function entry point and rewrites for API calls and uploaded map files.
 
