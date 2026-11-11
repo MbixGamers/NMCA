@@ -18,8 +18,9 @@ const ROOT=__dirname, DATA=path.join(ROOT,'data','store.json'), UP=path.join(ROO
 if(!useFirebase&&!process.env.VERCEL)for(const d of [path.dirname(DATA),UP])fs.mkdirSync(d,{recursive:true});
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json','.pdf':'application/pdf','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml','.txt':'text/plain; charset=utf-8'};
 const emptyStore=()=>({users:[],floors:[],bookings:[],timetables:[],mapFiles:[]});
-const normalizeStore=value=>{const result={...emptyStore(),...(value||{})};for(const key of Object.keys(emptyStore())){const v=result[key];if(Array.isArray(v))continue;result[key]=v&&typeof v==='object'?Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]).filter(x=>x!=null):[]}return result};
-let store;try{store=JSON.parse(fs.readFileSync(DATA,'utf8'))}catch{store=emptyStore()}
+const normalizeLegacyTimetable=t=>({...t,slots:(t.slots||[]).map(s=>{const match=String(s.start||'').match(/^(\d{2}):(\d{2})$/),endMatch=String(s.end||'').match(/^(\d{2}):(\d{2})$/);if(!match||!endMatch)return s;const startHour=Number(match[1]),endHour=Number(endMatch[1]);if(startHour>=1&&startHour<=6&&endHour<=7)return{...s,start:`${String(startHour+12).padStart(2,'0')}:${match[2]}`,end:`${String(endHour+12).padStart(2,'0')}:${endMatch[2]}`};return s})});
+const normalizeStore=value=>{const result={...emptyStore(),...(value||{})};for(const key of Object.keys(emptyStore())){const v=result[key];if(Array.isArray(v))continue;result[key]=v&&typeof v==='object'?Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]).filter(x=>x!=null):[]}result.timetables=result.timetables.map(normalizeLegacyTimetable);return result};
+let store;try{store=normalizeStore(JSON.parse(fs.readFileSync(DATA,'utf8')))}catch{store=emptyStore()}
 let baseline=null;
 const save=async()=>{if(database){const ref=database.ref('nmca/state'),changed=Object.keys(store).filter(k=>JSON.stringify(store[k])!==JSON.stringify(baseline?.[k]));const result=await ref.transaction(current=>{const latest=normalizeStore(current);for(const key of changed)latest[key]=store[key];return latest});store=normalizeStore(result.snapshot.val());baseline=JSON.parse(JSON.stringify(store))}else fs.writeFileSync(DATA,JSON.stringify(store,null,2))};
 const refreshStore=async()=>{if(database){const snapshot=await database.ref('nmca/state').once('value');store=normalizeStore(snapshot.val());baseline=JSON.parse(JSON.stringify(store))}};
@@ -35,16 +36,18 @@ const branchKey=s=>String(s||'').trim().replace(/\s+/g,' ').toLowerCase();
 const weekdayForDate=date=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||'')))return null;const d=new Date(`${date}T00:00:00Z`);if(Number.isNaN(d.getTime())||d.toISOString().slice(0,10)!==date)return null;return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getUTCDay()]};
 const hasClassConflict=(timetables,date,room,start,end)=>{const day=weekdayForDate(date);return !!day&&(timetables||[]).some(t=>(t.slots||[]).some(s=>String(s.day||'').toLowerCase()===day.toLowerCase()&&normRoom(s.room)===normRoom(room)&&s.start<end&&start<s.end))};
 function parseTime(t){let m=t.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);if(!m)return null;let h=+m[1],mi=+(m[2]||0),ap=(m[3]||'').toUpperCase();if(ap){if(h===12)h=0;if(ap==='PM')h+=12}return h*60+mi}
+function timeOptions(t){const value=String(t||'').trim(),parsed=parseTime(value.replace(/\s/g,''));if(parsed==null)return[];if(/(?:AM|PM)$/i.test(value))return[parsed];const hour=Number(value.match(/^\d{1,2}/)?.[0]);return hour===0||hour===12||hour>12?[parsed]:[parsed,parsed+720]}
+function parseTimeRange(startText,endText,reference=360){const starts=timeOptions(startText),ends=timeOptions(endText),ranges=[];for(const start of starts)for(const end of ends)if(end>start)ranges.push({start,end});if(!ranges.length)return null;const forward=ranges.filter(r=>r.start>=reference),candidates=forward.length?forward:ranges;candidates.sort((a,b)=>(a.end-a.start)-(b.end-b.start)||a.start-b.start);return[candidates[0].start,candidates[0].end]}
 function clock(n){return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`}
 const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 function parseTimetable(raw,branch,filename){
- let slots=[], lines=raw.replace(/^\uFEFF/,'').split(/\r?\n/),active=null,headers=[];
+ let slots=[], lines=raw.replace(/^\uFEFF/,'').split(/\r?\n/),active=null,headers=[],lastEnd=null;
  // Grid format used in the supplied files: first column is a time range, remaining columns are weekdays.
  for(const line0 of lines){const line=line0.trim();if(!line.startsWith('|'))continue;let cells=line.split('|').slice(1,-1).map(x=>x.trim());if(cells.length<2||/^[-: ]+$/.test(cells.join('')))continue;
-  if(/^(time|hours?)$/i.test(cells[0])){headers=cells.slice(1).map(c=>days.find(d=>d.toLowerCase().startsWith(c.toLowerCase()))||c);active={headers,continued:[]};continue}
+  if(/^(time|hours?)$/i.test(cells[0])){headers=cells.slice(1).map(c=>days.find(d=>d.toLowerCase().startsWith(c.toLowerCase()))||c);active={headers,continued:[]};lastEnd=null;continue}
   if(!active||cells[0]==='') {if(active&&cells[0]===''){active.continued=cells.slice(1);continue}continue}
   let tm=cells[0].match(/(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*[-–]\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)/i);if(!tm)continue;
-  let a=parseTime(tm[1].replace(/\s/g,'')),b=parseTime(tm[2].replace(/\s/g,''));if(a==null||b==null)continue;if(b<=a)b+=720;
+  let range=parseTimeRange(tm[1],tm[2],lastEnd??360);if(!range)continue;let[a,b]=range;lastEnd=b;
   cells.slice(1).forEach((cell,i)=>{let text=[cell,active.continued?.[i]].filter(Boolean).join(' ').trim();if(!text||/^(BREAK|LIBRARY HOUR|RESERVED FOR|$)/i.test(text))return;
    // Only explicit CR/CL/HL room tags can establish room occupancy. Roomless labs remain unassigned.
    const matches=[...text.matchAll(/\b(CR|CL|HL|CLI)\s*-?\s*(\d{1,4})\b/gi)];if(!matches.length)return;
@@ -53,7 +56,7 @@ function parseTimetable(raw,branch,filename){
   });active.continued=[];
  }
  // Also accept simple rows: day, start, end, room, subject[, branch].
- if(!slots.length)for(const l of lines){let c=l.split(/[\t,;|]+/).map(x=>x.trim());if(c.length<5||/^day$/i.test(c[0]))continue;if(!days.some(d=>d.toLowerCase()===c[0].toLowerCase()))continue;let a=parseTime(c[1]),b=parseTime(c[2]);if(a==null||b==null)continue;slots.push({day:c[0],start:clock(a),end:clock(b),room:normRoom(c[3]),subject:c[4],branch:c[5]||branch})}
+ if(!slots.length){const dayEnd=new Map();for(const l of lines){let c=l.split(/[\t,;|]+/).map(x=>x.trim());if(c.length<5||/^day$/i.test(c[0]))continue;let day=days.find(d=>d.toLowerCase()===c[0].toLowerCase());if(!day)continue;let range=parseTimeRange(c[1],c[2],dayEnd.get(day)??360);if(!range)continue;let[a,b]=range;dayEnd.set(day,b);slots.push({day,start:clock(a),end:clock(b),room:normRoom(c[3]),subject:c[4],branch:c[5]||branch})}}
  return {id:id(),branch,filename,uploadedAt:new Date().toISOString(),raw,slots};
 }
 async function handler(req,res){try{if(process.env.VERCEL&&firebaseInitError)return send(res,503,{error:'Firebase initialization failed. Check the service-account JSON and Firebase project ID in Vercel environment variables.'});if(process.env.VERCEL&&!database)return send(res,503,{error:'Firebase is not configured. Set FIREBASE_SERVICE_ACCOUNT_BASE64 in the Vercel project settings.'});if(process.env.VERCEL&&!sessionSecret)return send(res,503,{error:'SESSION_SECRET is not configured in the Vercel project settings.'});await refreshStore();const u=new URL(req.url,'http://localhost'),p=u.pathname;
