@@ -20,6 +20,8 @@ Upload the weekly grid `.txt` files from **Branch timetables**. The importer rea
 
 For Vercel, the app stores shared data in Firebase Realtime Database. The default local mode still stores state in `data/store.json` and uploaded maps in `uploads/`.
 
+GitHub Pages cannot host this app's Node.js API or Firebase Admin SDK. If Pages displays this repository's README, it is serving the repository source rather than the app. Deploy the repository root on Vercel to serve the `public/` homepage together with the `/api` functions.
+
 Follow the full [Vercel and Firebase deployment guide](DEPLOYMENT.md). On the Firebase Spark plan, this project uses Realtime Database only; it does not use Firebase Storage. Floor images are uploaded in small chunks into Realtime Database, so they work within Vercel's function request limits.
 
 The first deployment has an empty Firebase state unless you migrate the current local data. To keep existing floors, room outlines, schedules, admins, and bookings, run `npm run migrate:firebase` from this folder before switching the deployed site to Firebase. The migration reads the local `data/store.json` and `uploads/` folder and writes them to Realtime Database.
