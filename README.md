@@ -18,10 +18,10 @@ Upload the weekly grid `.txt` files from **Branch timetables**. The importer rea
 
 ## Deployment
 
-For Vercel, the app stores shared data in Firebase Cloud Firestore. The default local mode still stores state in `data/store.json` and uploaded maps in `uploads/`.
+For Vercel, the app stores shared data in Firebase Realtime Database. The default local mode still stores state in `data/store.json` and uploaded maps in `uploads/`.
 
-Follow the full [Vercel and Firebase deployment guide](DEPLOYMENT.md). On the Firebase Spark plan, this project uses Firestore only; it does not use Firebase Storage. Floor images are uploaded in small chunks into Firestore, so they work within Vercel's function request limits.
+Follow the full [Vercel and Firebase deployment guide](DEPLOYMENT.md). On the Firebase Spark plan, this project uses Realtime Database only; it does not use Firebase Storage. Floor images are uploaded in small chunks into Realtime Database, so they work within Vercel's function request limits.
 
-The first deployment has an empty Firebase state unless you migrate the current local data. To keep existing floors, room outlines, schedules, admins, and bookings, run `npm run migrate:firebase` from this folder before switching the deployed site to Firebase. The migration reads the local `data/store.json` and `uploads/` folder and writes them to Firestore.
+The first deployment has an empty Firebase state unless you migrate the current local data. To keep existing floors, room outlines, schedules, admins, and bookings, run `npm run migrate:firebase` from this folder before switching the deployed site to Firebase. The migration reads the local `data/store.json` and `uploads/` folder and writes them to Realtime Database.
 
-Firestore's free quota is finite. The public status view refreshes periodically, so a large number of continuously open tabs can consume the daily read quota. Monitor usage in Firebase Console. See Firebase's current [Firestore free quota](https://firebase.google.com/docs/firestore/quotas).
+Realtime Database's free quota is finite. The public status view refreshes periodically, so a large number of continuously open tabs can consume the daily read quota. Monitor usage in Firebase Console. See Firebase's current [Realtime Database free quota](https://firebase.google.com/docs/database/usage/billing).
