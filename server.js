@@ -3,18 +3,19 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { URL } = require('url');
-const credentialValue=process.env.FIREBASE_SERVICE_ACCOUNT_BASE64?Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,'base64').toString('utf8'):process.env.FIREBASE_SERVICE_ACCOUNT;
+let credentialValue=process.env.FIREBASE_SERVICE_ACCOUNT;
+if(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64){const candidate=process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;try{JSON.parse(candidate);credentialValue=candidate}catch{credentialValue=Buffer.from(candidate,'base64').toString('utf8')}}
 const useFirebase=!!credentialValue;
-let database=null;
+let database=null,firebaseInitError=null;
 const databaseURL=process.env.FIREBASE_DATABASE_URL||'https://nmca-93b70-default-rtdb.asia-southeast1.firebasedatabase.app';
-if(useFirebase){
+if(useFirebase){try{
  const admin=require('firebase-admin');
  const account=JSON.parse(credentialValue);
  if(!admin.apps.length)admin.initializeApp({credential:admin.credential.cert(account),projectId:account.project_id,databaseURL});
  database=admin.database();
-}
+}catch(error){firebaseInitError=error;console.error('Firebase initialization failed:',error)}}
 const ROOT=__dirname, DATA=path.join(ROOT,'data','store.json'), UP=path.join(ROOT,'uploads');
-if(!useFirebase)for(const d of [path.dirname(DATA),UP])fs.mkdirSync(d,{recursive:true});
+if(!useFirebase&&!process.env.VERCEL)for(const d of [path.dirname(DATA),UP])fs.mkdirSync(d,{recursive:true});
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json','.pdf':'application/pdf','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml','.txt':'text/plain; charset=utf-8'};
 const emptyStore=()=>({users:[],floors:[],bookings:[],timetables:[],mapFiles:[]});
 const normalizeStore=value=>{const result={...emptyStore(),...(value||{})};for(const key of Object.keys(emptyStore())){const v=result[key];if(Array.isArray(v))continue;result[key]=v&&typeof v==='object'?Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]).filter(x=>x!=null):[]}return result};
@@ -52,7 +53,7 @@ function parseTimetable(raw,branch,filename){
  if(!slots.length)for(const l of lines){let c=l.split(/[\t,;|]+/).map(x=>x.trim());if(c.length<5||/^day$/i.test(c[0]))continue;if(!days.some(d=>d.toLowerCase()===c[0].toLowerCase()))continue;let a=parseTime(c[1]),b=parseTime(c[2]);if(a==null||b==null)continue;slots.push({day:c[0],start:clock(a),end:clock(b),room:normRoom(c[3]),subject:c[4],branch:c[5]||branch})}
  return {id:id(),branch,filename,uploadedAt:new Date().toISOString(),raw,slots};
 }
-async function handler(req,res){try{if(process.env.VERCEL&&!database)return send(res,503,{error:'Firebase is not configured. Set FIREBASE_SERVICE_ACCOUNT_BASE64 in the Vercel project settings.'});if(process.env.VERCEL&&!sessionSecret)return send(res,503,{error:'SESSION_SECRET is not configured in the Vercel project settings.'});await refreshStore();const u=new URL(req.url,'http://localhost'),p=u.pathname;
+async function handler(req,res){try{if(process.env.VERCEL&&firebaseInitError)return send(res,503,{error:'Firebase initialization failed. Check the service-account JSON and Firebase project ID in Vercel environment variables.'});if(process.env.VERCEL&&!database)return send(res,503,{error:'Firebase is not configured. Set FIREBASE_SERVICE_ACCOUNT_BASE64 in the Vercel project settings.'});if(process.env.VERCEL&&!sessionSecret)return send(res,503,{error:'SESSION_SECRET is not configured in the Vercel project settings.'});await refreshStore();const u=new URL(req.url,'http://localhost'),p=u.pathname;
  if(p.startsWith('/uploads/')){const name=path.basename(decodeURIComponent(p.slice(9)));if(database){const value=(await database.ref('nmca/maps/'+mapKey(name)).once('value')).val(),meta=value&&value.meta,entries=Object.entries((value&&value.chunks)||{}).sort((a,b)=>a[0].localeCompare(b[0]));if(!meta||!entries.length){res.writeHead(404);return res.end()}res.writeHead(200,{'Content-Type':meta.type||'application/octet-stream','Cache-Control':'public, max-age=3600'});return res.end(Buffer.concat(entries.map(([,v])=>Buffer.from(v.data,'base64'))))}const f=path.join(UP,name);return fs.createReadStream(f).on('error',()=>{res.writeHead(404);res.end()}).pipe(res)}
  if(p==='/MAP.pdf'){const mapPdf=path.join(ROOT,'MAP.pdf');if(!fs.existsSync(mapPdf)){res.writeHead(404,{'Content-Type':'text/plain; charset=utf-8'});return res.end('Campus PDF is not installed. Upload a floor image from the admin panel.')}res.writeHead(200,{'Content-Type':'application/pdf'});return fs.createReadStream(mapPdf).pipe(res)}
  if(p==='/api/status')return send(res,200,{setup:store.users.length===0,authenticated:!!user(req),user:user(req)&&clean(user(req))});
