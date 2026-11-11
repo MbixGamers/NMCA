@@ -10,7 +10,7 @@ function localDateTimeValue(d=new Date()){return`${d.getFullYear()}-${String(d.g
 function roomKey(value){return String(value||'').toUpperCase().replace(/\s+/g,'').replace(/-/g,'')}
 function weekdayForDate(date){let d=new Date(`${date}T00:00:00`);return Number.isNaN(d.getTime())?'':['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]}
 function roomHasClass(room,day,start,end){return state.timetables.some(t=>(t.slots||[]).some(s=>s.day===day&&roomKey(s.room)===roomKey(room)&&s.start<end&&start<s.end))}
-function roomStatus(room,day,time,date){let key=roomKey(room),occ=state.timetables.flatMap(t=>t.slots||[]).filter(x=>roomKey(x.room)===key&&x.day===day&&x.start<=time&&time<x.end);let book=state.bookings.find(x=>x.date===date&&roomKey(x.room)===key&&x.status!=='cancelled'&&x.start<=time&&time<x.end);return{busy:occ.length>0||!!book,what:book?`Booked: ${book.purpose}`:occ[0]?.subject||''}}
+function roomStatus(room,day,time,date){let key=roomKey(room),occ=state.timetables.flatMap(t=>t.slots||[]).filter(x=>roomKey(x.room)===key&&x.day===day&&x.start<=time&&time<x.end);let book=state.bookings.find(x=>x.date===date&&roomKey(x.room)===key&&x.status!=='cancelled'&&x.start<=time&&time<x.end);return{busy:occ.length>0||!!book,what:book?(book.purpose?`Booked: ${book.purpose}`:'Booked'):occ[0]?.subject||''}}
 function roomLabelLayout(room){
  const points=room?.points||[];if(points.length<3)return{x:50,y:50,width:8,height:5,font:1.8,rx:3,ry:2};
  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity,area2=0,cxNumerator=0,cyNumerator=0;
