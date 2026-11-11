@@ -10,11 +10,11 @@ The app stores users, floor definitions, timetable data, and bookings in `data/s
 
 ## Floor setup
 
-Sign in as super admin, open **Admin panel → Floor plans**, add a floor, upload a clear PNG/JPG/WebP floor image, select it, and use **Draw room outline** to click around each classroom. Label each outline with the same room code used in timetable cells, such as `CR 501` or `CL 506`. Room boundaries must be traced manually; the app does not infer exact room polygons from a PDF automatically. A local `MAP.pdf` can be placed in the project root for the PDF reference link, but it is intentionally not included in this repository.
+Sign in as super admin, open **Admin panel → Floor plans**, add a floor, upload a clear PNG/JPG/WebP floor image, select it, and use **Draw room outline** to click around each classroom. Label each outline with the same room code used in timetable cells, such as `CR 501` or `CL 506`. Room boundaries must be traced manually; the app does not infer exact room polygons from a PDF automatically. The campus reference PDF is served from `public/MAP.pdf`, so it is included in the deployment and opens directly from the home page.
 
 ## Timetables
 
-Upload the weekly grid `.txt` files from **Branch timetables**. The importer reads weekday table rows and time ranges and only marks explicit `CR`, `CL`, `HL`, or `CLI` room codes as occupied. Unassigned labs and cells without a room code are not guessed. Uploading a timetable replaces that branch's prior schedule. Admin accounts are limited to their assigned branch.
+Upload the weekly grid `.txt` files from **Branch timetables**. The importer reads weekday table rows and time ranges and only marks explicit `CR`, `CL`, `HL`, or `CLI` room codes as occupied. Unassigned labs and cells without a room code are not guessed. Uploading a timetable replaces that branch's prior schedule, including when the branch name differs only by case or extra spaces. Super admins can delete a timetable from the dashboard; branch admins cannot. Admin accounts are limited to their assigned branch.
 
 ## Deployment
 

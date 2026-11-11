@@ -9,10 +9,6 @@
     {
       "source": "/uploads/:path*",
       "destination": "/api/index?route=/uploads/:path*"
-    },
-    {
-      "source": "/MAP.pdf",
-      "destination": "/api/index?route=/MAP.pdf"
     }
   ],
   "outputDirectory": "public"
