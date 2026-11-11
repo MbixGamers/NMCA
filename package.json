@@ -2,6 +2,11 @@
   "name": "classroom-booking",
   "version": "1.0.0",
   "private": true,
-  "description": "Local file-backed classroom availability and after-hours booking",
-  "scripts": { "start": "node server.js" }
+  "description": "NMIMS MPSTME Classroom Availability with local or Firebase Firestore storage",
+  "engines": { "node": ">=20" },
+  "dependencies": { "firebase-admin": "^13.5.0" },
+  "scripts": {
+    "start": "node server.js",
+    "migrate:firebase": "node scripts/migrate-to-firestore.js"
+  }
 }

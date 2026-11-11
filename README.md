@@ -16,6 +16,12 @@ Sign in as super admin, open **Admin panel → Floor plans**, add a floor, uploa
 
 Upload the weekly grid `.txt` files from **Branch timetables**. The importer reads weekday table rows and time ranges and only marks explicit `CR`, `CL`, `HL`, or `CLI` room codes as occupied. Unassigned labs and cells without a room code are not guessed. Uploading a timetable replaces that branch's prior schedule. Admin accounts are limited to their assigned branch.
 
-## Access from other devices
+## Deployment
 
-The app has no database. It writes changes to local JSON and uploaded image files on the server, then public pages refresh from the same server every 10 seconds. Data is shared only while this Node server runs on a computer that the other devices can reach over the network. `localhost` is only this computer; worldwide access requires hosting the server on an internet reachable machine. The project binds to all network interfaces, so deploy it only on a trusted network and use HTTPS/access controls before public hosting.
+For Vercel, the app stores shared data in Firebase Cloud Firestore. The default local mode still stores state in `data/store.json` and uploaded maps in `uploads/`.
+
+Follow the full [Vercel and Firebase deployment guide](DEPLOYMENT.md). On the Firebase Spark plan, this project uses Firestore only; it does not use Firebase Storage. Floor images are uploaded in small chunks into Firestore, so they work within Vercel's function request limits.
+
+The first deployment has an empty Firebase state unless you migrate the current local data. To keep existing floors, room outlines, schedules, admins, and bookings, run `npm run migrate:firebase` from this folder before switching the deployed site to Firebase. The migration reads the local `data/store.json` and `uploads/` folder and writes them to Firestore.
+
+Firestore's free quota is finite. The public status view refreshes periodically, so a large number of continuously open tabs can consume the daily read quota. Monitor usage in Firebase Console. See Firebase's current [Firestore free quota](https://firebase.google.com/docs/firestore/quotas).
