@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.*
+/data/
+/uploads/
+/MAP.pdf
+/2nd year tt.txt
+/compiled_timetables_1st year.txt
+/BTech_MXTC_1st Year.txt
+/NMCA Classroom Availability Logo.png
