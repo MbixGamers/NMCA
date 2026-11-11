@@ -14,6 +14,5 @@
       "destination": "/api/index?route=/MAP.pdf"
     }
   ],
-  "framework": "other",
   "outputDirectory": "public"
 }
