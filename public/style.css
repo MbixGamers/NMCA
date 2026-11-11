@@ -10,3 +10,5 @@
 body{font-family:"Segoe UI",Arial,sans-serif}.brand,h1,h2,h3{font-family:"Segoe UI",Arial,sans-serif}
 
 .brand-logo-crop img{top:1px}
+
+.loginbox{position:relative;max-height:calc(100vh - 32px);overflow-y:auto}.loginclose{position:absolute;top:20px;right:20px;z-index:1;float:none}.login-logo{margin:26px 0 28px;padding:42px 88px 0 0;width:100%}.login-logo img{display:block;width:100%;max-width:100%;height:auto;object-fit:contain}
