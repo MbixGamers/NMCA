@@ -40,6 +40,8 @@ function timeOptions(t){const value=String(t||'').trim(),parsed=parseTime(value.
 function parseTimeRange(startText,endText,reference=360){const starts=timeOptions(startText),ends=timeOptions(endText),ranges=[];for(const start of starts)for(const end of ends)if(end>start)ranges.push({start,end});if(!ranges.length)return null;const forward=ranges.filter(r=>r.start>=reference),candidates=forward.length?forward:ranges;candidates.sort((a,b)=>(a.end-a.start)-(b.end-b.start)||a.start-b.start);return[candidates[0].start,candidates[0].end]}
 function clock(n){return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`}
 const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const ROOM_TAG=String.raw`(?:\b(?:CR|CL|HL|CLI)\s*-?\s*\d{1,4}\b|\b(?:ES|DE)\s+LAB\b|\bADV(?:ANCED)?\s+COMM(?:UNICATION)?\s+LAB\b)`;
+function roomMatches(text){return [...String(text||'').matchAll(new RegExp(ROOM_TAG,'gi'))]}
 function parseTimetable(raw,branch,filename){
  let slots=[], lines=raw.replace(/^\uFEFF/,'').split(/\r?\n/),active=null,headers=[],lastEnd=null;
  // Grid format used in the supplied files: first column is a time range, remaining columns are weekdays.
@@ -49,14 +51,14 @@ function parseTimetable(raw,branch,filename){
   let tm=cells[0].match(/(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*[-–]\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)/i);if(!tm)continue;
   let range=parseTimeRange(tm[1],tm[2],lastEnd??360);if(!range)continue;let[a,b]=range;lastEnd=b;
   cells.slice(1).forEach((cell,i)=>{let text=[cell,active.continued?.[i]].filter(Boolean).join(' ').trim();if(!text||/^(BREAK|LIBRARY HOUR|RESERVED FOR|$)/i.test(text))return;
-   // Only explicit CR/CL/HL room tags can establish room occupancy. Roomless labs remain unassigned.
-   const matches=[...text.matchAll(/\b(CR|CL|HL|CLI)\s*-?\s*(\d{1,4})\b/gi)];if(!matches.length)return;
-   const room=normRoom(matches[0][0]),subject=text.replace(/\[[^\]]*\]/g,'').replace(/\b(CR|CL|HL|CLI)\s*-?\s*\d{1,4}\b/ig,'').replace(/\s+/g,' ').trim();
+   // Explicit numbered rooms and named labs can establish room occupancy.
+   const matches=roomMatches(text);if(!matches.length)return;
+   const room=normRoom(matches[0][0]),subject=text.replace(/\[[^\]]*\]/g,'').replace(new RegExp(ROOM_TAG,'ig'),'').replace(/\s+/g,' ').trim();
    slots.push({day:active.headers[i]||days[i],start:clock(a),end:clock(b),room,subject:subject||'Class',branch});
   });active.continued=[];
  }
  // Horizontal text format: weekday headings followed by time-range rows.
- if(!slots.length){let activeDay='',lastEndByDay=new Map();for(const line of lines){const heading=line.match(/^\s*(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s*:?\s*$/i);if(heading){activeDay=days.find(d=>d.toLowerCase()===heading[1].toLowerCase())||'';continue}if(!activeDay)continue;const row=line.match(/^\s*(?:[-*•]\s*)?(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*[-–]\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*:\s*(.*?)\s*$/i);if(!row)continue;const range=parseTimeRange(row[1],row[2],lastEndByDay.get(activeDay)??360);if(!range)continue;const[a,b]=range;lastEndByDay.set(activeDay,b);for(const part of row[3].split(/\s*\/\s*/)){const match=part.match(/\b(CR|CL|HL|CLI)\s*-?\s*(\d{1,4})\b/i);if(!match)continue;const room=normRoom(match[0]),subject=part.replace(/\[[^\]]*\]/g,'').replace(/\b(CR|CL|HL|CLI)\s*-?\s*\d{1,4}\b/ig,'').replace(/\s+/g,' ').trim();if(/^(BREAK|LIBRARY HOURS?)$/i.test(subject))continue;slots.push({day:activeDay,start:clock(a),end:clock(b),room,subject:subject||'Class',branch})}}}
+ if(!slots.length){let activeDay='',lastEndByDay=new Map();for(const line of lines){const heading=line.match(/^\s*(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s*:?\s*$/i);if(heading){activeDay=days.find(d=>d.toLowerCase()===heading[1].toLowerCase())||'';continue}if(!activeDay)continue;const row=line.match(/^\s*(?:[-*•]\s*)?(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*[-–]\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*:\s*(.*?)\s*$/i);if(!row)continue;const range=parseTimeRange(row[1],row[2],lastEndByDay.get(activeDay)??360);if(!range)continue;const[a,b]=range;lastEndByDay.set(activeDay,b);for(const part of row[3].split(/\s*\/\s*/)){const match=roomMatches(part)[0];if(!match)continue;const room=normRoom(match[0]),subject=part.replace(/\[[^\]]*\]/g,'').replace(new RegExp(ROOM_TAG,'ig'),'').replace(/\s+/g,' ').trim();if(/^(BREAK|LIBRARY HOURS?)$/i.test(subject))continue;slots.push({day:activeDay,start:clock(a),end:clock(b),room,subject:subject||'Class',branch})}}}
  // Also accept simple rows: day, start, end, room, subject[, branch].
  if(!slots.length){const dayEnd=new Map();for(const l of lines){let c=l.split(/[\t,;|]+/).map(x=>x.trim());if(c.length<5||/^day$/i.test(c[0]))continue;let day=days.find(d=>d.toLowerCase()===c[0].toLowerCase());if(!day)continue;let range=parseTimeRange(c[1],c[2],dayEnd.get(day)??360);if(!range)continue;let[a,b]=range;dayEnd.set(day,b);slots.push({day,start:clock(a),end:clock(b),room:normRoom(c[3]),subject:c[4],branch:c[5]||branch})}}
  return {id:id(),branch,filename,uploadedAt:new Date().toISOString(),raw,slots};
