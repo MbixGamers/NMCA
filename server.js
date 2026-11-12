@@ -38,11 +38,18 @@ function normRoom(value){let room=String(value||'').normalize('NFKD').replace(/[
  if(m=room.match(/^(?:HL|HARDWARE LAB)\s*-?\s*(\d{1,3})$/))return`HL ${m[1]}`;
  if(m=room.match(/^(?:TR|TUTORIAL ROOM)\s*-?\s*(\d{1,4})$/))return`TR ${m[1]}`;
  if(m=room.match(/^(?:CC|COMPUTING CENT(?:RE|ER))\s*-?\s*(\d{1,4})$/))return`CC ${m[1]}`;
+ if(m=room.match(/^(?:(?:V\s*C)|VIDEO CONFERENCE)(?:\s+ROOM)?\s*(\d{1,2})$/))return`VC ROOM ${m[1]}`;
  if(/^(?:ES|EMBEDDED SYSTEMS) LAB$/.test(room))return'ES LAB';
  if(/^(?:DE|DIGITAL ELECTRONICS) LAB$/.test(room))return'DE LAB';
  if(/^(?:ADV|ADVANCE|ADVANCED) (?:COMM|COMMUNICATION) LAB$/.test(room))return'ADVANCE COMMUNICATION LAB';
  if(/^BASIC COMM(?:UNICATION)? LAB$/.test(room))return'BASIC COMMUNICATION LAB';
  if(/^SENSOR (?:IOT|INTERNET OF THINGS) LAB$/.test(room))return'SENSOR IOT LAB';
+ if(/^PNEUMATICS? LABS?$/.test(room))return'PNEUMATIC LAB';
+ if(/^AUTOMATION LABS?$/.test(room))return'AUTOMATION LAB';
+ if(/^HYDRAULICS LABS?$/.test(room))return'HYDRAULICS LAB';
+ if(/^ADDITIVE MANUFACTURING LABS?$/.test(room))return'ADDITIVE MANUFACTURING LAB';
+ if(/^ROBOTICS LABS?$/.test(room))return'ROBOTICS LAB';
+ if(/^AI LABS?$/.test(room))return'AI LAB';
  if(/^AR\/VR LAB$/.test(room))return'AR/VR LAB';
  return room}
 const branchKey=s=>String(s||'').trim().replace(/\s+/g,' ').toLowerCase();
@@ -53,7 +60,7 @@ function timeOptions(t){const value=String(t||'').trim(),parsed=parseTime(value.
 function parseTimeRange(startText,endText,reference=360){const starts=timeOptions(startText),ends=timeOptions(endText),ranges=[];for(const start of starts)for(const end of ends)if(end>start)ranges.push({start,end});if(!ranges.length)return null;const forward=ranges.filter(r=>r.start>=reference),candidates=forward.length?forward:ranges;candidates.sort((a,b)=>(a.end-a.start)-(b.end-b.start)||a.start-b.start);return[candidates[0].start,candidates[0].end]}
 function clock(n){return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`}
 const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-const ROOM_TAG=String.raw`(?:\bCR\s+LG\s*-?\s*\d{1,3}\b|\b(?:CR|CL|HL|CLI|TR|CC)\s*-?\s*\d{1,4}\b|\b(?:CLASSROOM|COMPUTER\s+LAB|HARDWARE\s+LAB|TUTORIAL\s+ROOM|COMPUTING\s+CENT(?:RE|ER))\s*-?\s*\d{1,4}\b|\b(?:EMBEDDED\s+SYSTEMS|DIGITAL\s+ELECTRONICS|ES|DE)\s+LAB\b|\b(?:ADV|ADVANCE|ADVANCED)\s+(?:COMM|COMMUNICATION)\s+LAB\b|\bBASIC\s+COMM(?:UNICATION)?\s+LAB\b|\b(?:AI|ROBOTICS|SENSOR\s+(?:IOT|INTERNET\s+OF\s+THINGS)|PNEUMATIC|AUTOMATION|HYDRAULICS|ADDITIVE\s+MANUFACTURING)\s+LAB\b|\bAR\s*\/\s*VR\s+LAB\b|\b(?:MINI\s+AUDITORIUM|CAFETERIA(?:\s*\(AC\))?|FACULTY\s+DINING|ELECTRICAL\s+PANEL\s+ROOM|MAINTENANCE\s+ROOM|SERVICES|PANTRY|AHU|FACULTY\s+AREA\s+\d{3}|DEAN\s+OFFICE|BOYS\s+COMMON\s+ROOM|PLACEMENT\s+OFFICE\s+\d{1,2}(?:\s+AND\s+\d{1,2})?|V\.?\s*C\.?\s+ROOM\s+\d{1,2}|LIBRARY)\b)`;
+const ROOM_TAG=String.raw`(?:\bCR\s+LG\s*-?\s*\d{1,3}\b|\b(?:CR|CL|HL|CLI|TR|CC)\s*-?\s*\d{1,4}\b|\b(?:CLASSROOM|COMPUTER\s+LAB|HARDWARE\s+LAB|TUTORIAL\s+ROOM|COMPUTING\s+CENT(?:RE|ER))\s*-?\s*\d{1,4}\b|\b(?:(?:V\.?\s*C\.?)|VIDEO\s+CONFERENCE)(?:\s+ROOM)?\s*\d{1,2}\b|\b(?:EMBEDDED\s+SYSTEMS|DIGITAL\s+ELECTRONICS|ES|DE)\s+LABS?\b|\b(?:ADV|ADVANCE|ADVANCED)\s+(?:COMM|COMMUNICATION)\s+LABS?\b|\bBASIC\s+COMM(?:UNICATION)?\s+LABS?\b|\b(?:AI|ROBOTICS|SENSOR\s+(?:IOT|INTERNET\s+OF\s+THINGS)|PNEUMATICS?|AUTOMATION|HYDRAULICS|ADDITIVE\s+MANUFACTURING)\s+LABS?\b|\bAR\s*\/\s*VR\s+LABS?\b|\b(?:MINI\s+AUDITORIUM|CAFETERIA(?:\s*\(AC\))?|FACULTY\s+DINING|ELECTRICAL\s+PANEL\s+ROOM|MAINTENANCE\s+ROOM|SERVICES|PANTRY|AHU|FACULTY\s+AREA\s+\d{3}|DEAN\s+OFFICE|BOYS\s+COMMON\s+ROOM|PLACEMENT\s+OFFICE\s+\d{1,2}(?:\s+AND\s+\d{1,2})?|LIBRARY)\b)`;
 function roomMatches(text){return [...String(text||'').matchAll(new RegExp(ROOM_TAG,'gi'))]}
 function assignmentParts(text){return String(text||'').replace(/\bAR\s*\/\s*VR\b/gi,'AR__VR').split(/\s*\/\s*/).map(x=>x.replace(/AR__VR/gi,'AR/VR').trim()).filter(Boolean)}
 function roomAssignments(text){return assignmentParts(text).flatMap(part=>{const matches=roomMatches(part);if(!matches.length)return[];const subject=part.replace(/\[[^\]]*\]/g,'').replace(new RegExp(ROOM_TAG,'ig'),'').replace(/\s+/g,' ').trim();if(/^(BREAK|LIBRARY HOURS?)$/i.test(subject))return[];return matches.map(match=>({room:normRoom(match[0]),subject:subject||'Class'}))})}
